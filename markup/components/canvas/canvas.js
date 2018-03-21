@@ -16,6 +16,7 @@ export default class Canvas {
         // вся доска
         const cnvs = document.getElementById('canvas');
         const ctx = cnvs.getContext('2d');
+        
         ctx.fillStyle = '#54dab6';
         ctx.fillRect(0, 0, 630, 700);
         
@@ -27,26 +28,27 @@ export default class Canvas {
         let score = 0;
         ctx.fillStyle = white;
         ctx.font = '42px Arial';
-        ctx.fillText(score, 2.3 * box, 1.5 * box);
+        ctx.fillText(score, 2.5 * box, 1.5 * box);
        
         let scoreApple = new Image();
-        scoreApple.src = 'static/img/assets/canvas/apple.png';
+        scoreApple.src = 'static/img/assets/canvas/cherries.png';
         scoreApple.onload = function () {
-            ctx.drawImage(scoreApple, 10, -7, 90, 90);
+            ctx.drawImage(scoreApple, 30, 15, 50, 50);
         };
 
         // еда
         let apple = new Image();
-        apple.src = 'static/img/assets/canvas/apple.png';
+        apple.src = 'static/img/assets/canvas/cherries.png';
         
         let randomCoord = function () {
-            return Math.floor(Math.random() * 16 * box);
+            return Math.floor(Math.random() * 16) * box;
         };
+
         let food = {
             x: randomCoord(),
             y: randomCoord()
         };
-
+        
         // начало змеи
         let snake = [];
         snake[0] = {x: 9 * box, y: 10 * box};
@@ -67,13 +69,64 @@ export default class Canvas {
                 d = 'stop';
             }
         }
-       
+        // получение цвета ячейки для перерисовки
+        function getThePixelData(cellX, cellY, cellSize) {
+            let myImageData = ctx.getImageData(cellX, cellY, cellSize, cellSize);
+            let data = myImageData.data;
+            let rgba = 'rgba(' + data[0] + ', ' + data[1] +
+             ', ' + data[2] + ', ' + (data[3] / 255) + ')';
+            console.log(rgba);
+            ctx.fillStyle = rgba;
+            ctx.fillRect(cellX, cellY, cellSize, cellSize);
+            
+        }
+
+        // создание яблока в пределах шахматки
+        function generateBonus(obj, img, snakeHead) {
+            if (obj.x < box || obj.x > box * 16) {
+                food = {
+                    x: randomCoord(),
+                    y: randomCoord()
+                };
+                return;
+            } else if (obj.y < topPadding || obj.y > topPadding + box * 16) {
+                food = {
+                    x: randomCoord(),
+                    y: randomCoord()
+                };
+                return;
+            } else if (snakeHead.x === obj.x && snakeHead.y === obj.y) {
+                getThePixelData(obj.x, obj.y, box);
+                obj = {
+                    x: randomCoord(),
+                    y: randomCoord()
+                };
+                
+                generateBonus(obj, img, snakeHead);
+            } else {
+                ctx.drawImage(img, obj.x, obj.y, box, box);
+            }
+        }
+    
+        // удаление бонусов 
+        function deleteLayer(delX, delY, s) {
+            ctx.clearRect(delX, delY, s, s);
+        }
+    
+        // пиздец змейке
+        function gameOver() {
+            snake.splice(0, snake.length);
+            let over = 'GAME OVER';
+            ctx.fillStyle = white;
+            ctx.font = '42px Arial';
+            ctx.fillText(over, 3.5 * box, 1.5 * box);
+        }
+        
         // перерисовка
         function drawSnakeAndBoard() {
-            // размер только шахматки
-            ctx.fillStyle = 'transparent';
-            ctx.fillRect(box, box * 3, 560, 560);
             // шахматка
+            ctx.fillStyle = white;
+            ctx.fillRect(box, topPadding, 0, 0);
             for (x = 0; x < 16; x++) {
                 for (y = 0; y < 16; y++) {
                     if (x % 2 === y % 2) {
@@ -83,9 +136,9 @@ export default class Canvas {
                         ctx.fillStyle = greenLight;
                         ctx.fillRect(box + box * x, topPadding + box * y, box, box);
                     }
-                    generateBonus(food, apple);
                 }
             }
+
             for (let i = 0; i < snake.length; i++) {
                 ctx.fillStyle = (i === 0) ? purple : white;
                 ctx.fillRect(snake[i].x, snake[i].y, box, box);
@@ -96,6 +149,8 @@ export default class Canvas {
             // позиция начала
             let snakeX = snake[0].x;
             let snakeY = snake[0].y;
+
+            
 
             // удалить последний элемент
             snake.pop();
@@ -116,55 +171,35 @@ export default class Canvas {
                 x: snakeX,
                 y: snakeY
             };
+
+            generateBonus(food, apple, newHead);
+
             // добавить новый элемент в начало
             snake.unshift(newHead);
 
             console.log(food.x);
-            console.log(newHead.x);
-
-            // создание яблока в пределах шахматки
-            function generateBonus(obj, img) {
-                if (obj.x < box * 2 || obj.x > box * 16) {
-                    obj.x = randomCoord();
-                    ctx.drawImage(img, obj.x, obj.y, 35, 35);
-                } else if (obj.y < topPadding || obj.y > box * 16) {
-                    obj.y = randomCoord();
-                } else {
-                    ctx.drawImage(img, obj.x, obj.y, 35, 35);
-                }
-            }
-
-            // удаление бонусов 
-            function deleteLayer(delX, delY, s) {
-                ctx.fillStyle = 'transparent';
-                ctx.clearRect(delX, delY, s, s);
-            }
-
-            // пиздец змейке
-            function gameOver() {
-                snake.splice(1, snake.length);
-                let over = 'GAME OVER';
-                ctx.fillStyle = white;
-                ctx.font = '42px Arial';
-                ctx.fillText(over, 3.5 * box, 1.5 * box);
-            }
+            // console.log(newHead.x);
 
             // ограничение размера поля
-            if (newHead.y < topPadding || newHead.y > box * 16 || newHead.x < box || newHead.x > box * 16) {
+            if (newHead.y < topPadding || newHead.y > topPadding + box * 16 || newHead.x < box || newHead.x > box * 16) {
                 gameOver();
             }
 
             // + за яблоки
             if (newHead.x === food.x && newHead.y === food.y) {
-                deleteLayer(food.x, food.y, size);
+                // deleteLayer(food.x, food.y, box);
                 snake.push(newHead);
-                generateBonus(food, apple);
-                ctx.fillStyle = greenDark;
+                console.log(snake);
+                // generateBonus(food, apple);
+
+                // удаления слоя score
                 deleteLayer(75, 15, 40);
+                ctx.fillStyle = '#399e84';
+                ctx.fillRect(75, 15, 40, 40);
                 score++;
                 ctx.fillStyle = white;
                 ctx.font = '42px Arial';
-                ctx.fillText(score, 2.3 * box, 1.5 * box);
+                ctx.fillText(score, 2.5 * box, 1.5 * box);
                 
             } else {
                 //
